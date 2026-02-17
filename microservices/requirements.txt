@@ -1,0 +1,5 @@
+confluent-kafka==2.3.0
+neo4j==5.19.0
+pydantic==2.5.2
+python-dotenv==1.0.1
+boto3
