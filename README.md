@@ -5,7 +5,7 @@ This repository documents an end‑to‑end data ingestion and quality‑control
 It combines both **batch** and **streaming** ingestion paths, ensures strict data validation, isolates bad data for inspection, and produces an automated daily reconciliation summary.
 
 The overall goal of this system is simple:
-> **Ingest clean, well‑structured transactional data into Neo4j—at scale and in real time—while preserving auditability, governance, and trust in the dataset.**
+> **Ingest clean, well‑structured transactional data into Neo4j from batch and real time—while preserving auditability, governance, and trust in the dataset.**
 
 ---
 
