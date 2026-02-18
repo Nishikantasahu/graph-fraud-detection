@@ -1,0 +1,6 @@
+MATCH (s:Transaction {source:"kafka"})
+WHERE NOT EXISTS {
+   MATCH (b:Transaction {transNum:s.transNum, source:"batch"})
+}
+RETURN s.transNum, s.amount, s.ts
+LIMIT 50;

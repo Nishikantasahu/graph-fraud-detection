@@ -1,0 +1,42 @@
+MATCH (c:Cardholder)-[:PERFORMED]->(t:Transaction)-[:AT_MERCHANT]->(m:Merchant)
+RETURN
+  /* 1) Transaction_key: your business ID is t.transNum */
+  t.transNum                                                      AS Transaction_key,
+
+  /* 2) transdatetrans_time: you store a parsed datetime in t.ts */
+  toString(t.ts)                                                  AS transdatetrans_time,
+
+  /* 3) merchant: prefer m.name if present, else merchantId */
+  coalesce(m.name, m.merchantId)                                  AS merchant,
+
+  /* 4) category and 5) amt */
+  t.category                                                      AS category,
+  toFloat(t.amount)                                               AS amt,
+
+  /* 6) city and 7) state: primarily stored on Transaction, fallback to Merchant */
+  coalesce(t.city,  m.city)                                       AS city,
+  coalesce(t.state, m.state)                                      AS state,
+
+  /* 8) lat and 9) long: event (cardholder) coordinates captured at time of txn */
+  t.cardholderLat                                                 AS lat,
+  t.cardholderLong                                                AS long,
+
+  /* 10) city_pop from Transaction */
+  t.cityPop                                                       AS city_pop,
+
+  /* 11) job and 12) dob from Cardholder */
+  c.job                                                           AS job,
+  c.dob                                                           AS dob,
+
+  /* 13) trans_num: also t.transNum (you asked for both) */
+  t.transNum                                                      AS trans_num,
+
+  /* 14) merch_lat and 15) merch_long: use Merchant node coords in your schema */
+  m.latitude                                                      AS merch_lat,
+  m.longitude                                                     AS merch_long,
+
+  /* 16) is_fraud from Transaction */
+  t.isFraud                                                       AS is_fraud
+
+ORDER BY t.ts ASC, t.transNum
+LIMIT 1000;

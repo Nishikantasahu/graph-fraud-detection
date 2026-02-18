@@ -1,0 +1,4 @@
+MATCH (t:Transaction)
+RETURN
+  sum(CASE WHEN t.source = "batch" THEN 1 ELSE 0 END)  AS batchCount,
+  sum(CASE WHEN t.source = "kafka" THEN 1 ELSE 0 END)  AS streamCount;

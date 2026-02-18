@@ -1,0 +1,6 @@
+MATCH (t:Transaction {source:"kafka"})
+RETURN 
+  t.transNum,
+  duration.inSeconds(t.ts, t.ingestedAt).seconds AS ingestLagSeconds
+ORDER BY ingestLagSeconds DESC
+LIMIT 50;

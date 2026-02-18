@@ -1,0 +1,12 @@
+MATCH (c:Cardholder)-[:PERFORMED]->(t1:Transaction)-[:AT_MERCHANT]->(m1:Merchant),
+      (c)-[:PERFORMED]->(t2:Transaction)-[:AT_MERCHANT]->(m2:Merchant)
+WHERE t1 <> t2
+  AND t1.amount <= 5 AND t2.amount <= 5
+  AND m1.merchantId <> m2.merchantId
+  AND duration.inSeconds(t1.ts, t2.ts).seconds <= 10 * 60
+WITH c, collect(distinct t1) + collect(distinct t2) AS txs
+WITH c, apoc.coll.toSet(txs) AS uniqTx
+WHERE size(uniqTx) >= 3
+RETURN c.cardholderId AS cardholder,
+       [t IN uniqTx | t.transNum] AS suspiciousTransactions,
+       size(uniqTx) AS burstCount;

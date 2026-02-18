@@ -1,0 +1,122 @@
+// === Detect transactions that deviate significantly from a customer's normal spending patterns ===
+// Robust amount anomaly via Median + MAD, with cascading fallbacks and velocity enrichment.
+
+// 1) Anchor each transaction to score
+MATCH (c:Cardholder)-[:PERFORMED]->(t:Transaction)-[:AT_MERCHANT]->(m:Merchant)
+
+// OPTIONAL: focus on recent transactions only (uncomment & set your window)
+// WHERE t.ts >= datetime('2026-01-01T00:00:00Z')
+
+WITH c, t, m
+
+// 2) Velocity signal: how many tx in the last 10 minutes by the same cardholder
+OPTIONAL MATCH (c)-[:PERFORMED]->(tprev:Transaction)
+WHERE tprev.ts <= t.ts AND tprev.ts > t.ts - duration({ minutes: 10 })
+WITH c, t, m,
+     count(tprev) AS tx_last_10m,
+     toFloat(t.amount) AS amt,
+     t.category AS cat
+
+// 3) Cardholder baseline (median & MAD). Require ≥ 5 transactions to trust it.
+CALL (c) {
+  WITH c
+  MATCH (c)-[:PERFORMED]->(tx:Transaction)
+  WHERE tx.amount IS NOT NULL
+  // Median over rows
+  WITH c, percentileCont(toFloat(tx.amount), 0.5) AS med
+  // Collect values to compute absolute deviations from the median
+  MATCH (c)-[:PERFORMED]->(tx2:Transaction)
+  WHERE tx2.amount IS NOT NULL
+  WITH med, collect(toFloat(tx2.amount)) AS amts, count(tx2) AS n
+  WHERE n >= 5
+  WITH med, amts, n, [x IN amts | abs(x - med)] AS devs
+  UNWIND devs AS d
+  WITH med, percentileCont(d, 0.5) AS mad, n
+  RETURN med AS ch_med, mad AS ch_mad, n AS ch_n
+}
+WITH c, t, m, tx_last_10m, amt, cat, ch_med, ch_mad, coalesce(ch_n, 0) AS ch_n
+
+// 4) Category baseline (median & MAD). Require ≥ 30 transactions in the category.
+CALL (cat) {
+  WITH cat
+  MATCH (txc:Transaction)
+  WHERE txc.category = cat AND txc.amount IS NOT NULL
+  // Median over rows
+  WITH cat, percentileCont(toFloat(txc.amount), 0.5) AS med
+  // Collect values to compute absolute deviations from the median
+  MATCH (txc2:Transaction)
+  WHERE txc2.category = cat AND txc2.amount IS NOT NULL
+  WITH med, collect(toFloat(txc2.amount)) AS amts, count(txc2) AS n
+  WHERE n >= 30
+  WITH med, amts, n, [x IN amts | abs(x - med)] AS devs
+  UNWIND devs AS d
+  WITH med, percentileCont(d, 0.5) AS mad, n
+  RETURN med AS cat_med, mad AS cat_mad, n AS cat_n
+}
+WITH c, t, m, tx_last_10m, amt, cat, ch_med, ch_mad, ch_n, cat_med, cat_mad, coalesce(cat_n, 0) AS cat_n
+
+// 5) Global baseline (median & MAD) as last resort
+CALL () {
+  MATCH (txg:Transaction)
+  WHERE txg.amount IS NOT NULL
+  // Median over rows
+  WITH percentileCont(toFloat(txg.amount), 0.5) AS med
+  // Collect values to compute absolute deviations from the median
+  MATCH (txg2:Transaction)
+  WHERE txg2.amount IS NOT NULL
+  WITH med, collect(toFloat(txg2.amount)) AS amts
+  WITH med, [x IN amts | abs(x - med)] AS devs
+  UNWIND devs AS d
+  WITH med, percentileCont(d, 0.5) AS mad
+  RETURN med AS g_med, mad AS g_mad
+}
+WITH c, t, m, tx_last_10m, amt, cat, ch_med, ch_mad, ch_n, cat_med, cat_mad, cat_n, g_med, g_mad
+
+// 6) Pick the best available baseline (cardholder > category > global)
+WITH c, t, m, tx_last_10m, amt, cat,
+     CASE
+       WHEN ch_n >= 5 THEN ch_med
+       WHEN cat_n >= 30 THEN cat_med
+       ELSE g_med
+     END AS base_med,
+     CASE
+       WHEN ch_n >= 5 THEN ch_mad
+       WHEN cat_n >= 30 THEN cat_mad
+       ELSE g_mad
+     END AS raw_mad,   // <-- rename here
+     ch_n, cat_n
+
+// 7) Stabilize MAD (floor) and compute anomaly score; also cap extreme scores.
+WITH c, t, m, tx_last_10m, amt, cat, base_med, raw_mad, ch_n, cat_n
+WITH c, t, m, tx_last_10m, amt, cat, base_med,
+     CASE
+       WHEN raw_mad IS NULL OR raw_mad = 0 THEN 1e-9     // avoid divide-by-zero
+       WHEN raw_mad < 0.25 THEN 0.25                     // MAD floor (tune per currency scale)
+       ELSE raw_mad
+     END AS base_mad,
+     ch_n, cat_n
+WITH c, t, m, tx_last_10m, amt, cat,
+     abs(amt - base_med) / base_mad AS raw_score,
+     CASE
+       WHEN ch_n >= 5 THEN 'cardholder'
+       WHEN cat_n >= 30 THEN 'category'
+       ELSE 'global'
+     END AS baseline_used
+WITH c, t, m, tx_last_10m, amt, cat, baseline_used,
+     CASE WHEN raw_score > 25 THEN 25 ELSE raw_score END AS mad_score  // cap at 25
+
+// 8) Return results (add your own thresholding or persistence if needed)
+RETURN
+  t.transNum                     AS trans_num,
+  toString(t.ts)                 AS ts,
+  c.cardholderId                 AS cardholder,
+  coalesce(m.name, m.merchantId) AS merchant,
+  cat                            AS category,
+  amt                            AS amount,
+  baseline_used,
+  round(mad_score, 2)            AS amount_anomaly_score,
+  tx_last_10m,
+  // Optional blended score that incorporates burstiness
+  round(0.7*mad_score + 0.3*toFloat(tx_last_10m), 2) AS combined_score
+ORDER BY combined_score DESC, amount_anomaly_score DESC
+LIMIT 100;
