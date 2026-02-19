@@ -42,7 +42,7 @@ The producer creates synthetic financial transactions and publishes them to Kafk
 - Configurable event volume and publishing frequency
 - Clean JSON events with a consistent schema
 
-> **[Insert Screenshot – Producer Terminal / .env Variables]**
+
 
 ## 1.2 Kafka Consumer
 _File: `consumer.py`_
@@ -82,8 +82,7 @@ Each envelope includes:
 - Failed fields  
 - Kafka metadata (partition, offset, key, timestamp)
 
-> **[Insert Screenshot – S3 Bad Records (Kafka)]**  
-> **[Insert Screenshot – Neo4j Browser (Kafka Transaction Nodes)]**
+
 
 ---
 
@@ -142,9 +141,6 @@ The Glue job writes validated rows to Neo4j through the Spark connector using:
 - Explicit field casting  
 - `source = "batch"` attribution
 
-> **[Insert Screenshot – Glue Job Config]**  
-> **[Insert Screenshot – S3 Bad Records (Batch)]**  
-> **[Insert Screenshot – Neo4j Browser (Batch Transaction Nodes)]**
 
 ---
 
@@ -162,7 +158,7 @@ Partitioned by:
 
 This makes cross‑source quality comparisons trivial and supports downstream reconciliation.
 
-> **[Insert Screenshot – S3 Folder Hierarchy]**
+
 
 ---
 
@@ -184,14 +180,13 @@ The report includes:
 
 These results provide an auditable health snapshot for each day's data.
 
-> **[Insert Screenshot – Reconciliation Report Example]**  
-> **[Insert Screenshot – S3 Reconciliation Partitions]**
+
 
 ---
 
 # 5. Neo4j Graph Model Overview
 
-> **[Insert Diagram – Cardholder → Transaction → Merchant]**
+
 
 ## Nodes
 - **Cardholder**  
@@ -233,15 +228,7 @@ These results provide an auditable health snapshot for each day's data.
 
 Use the placeholders below when preparing documentation:
 
-```
-[ Insert Architecture Diagram Here ]
-[ Insert Kafka Topic Screenshot Here ]
-[ Insert Producer/Consumer Terminal Logs Here ]
-[ Insert S3 Bad Records Screenshots Here ]
-[ Insert Neo4j Graph Browser Screenshots Here ]
-[ Insert Glue Job Config Screenshots Here ]
-[ Insert Reconciliation Reports Screenshots Here ]
-```
+
 
 ---
 
@@ -264,7 +251,7 @@ ORDER BY merchantCount DESC
 LIMIT 20;
 ```
 
-> **[Paste your Cypher queries below]**
+
 
 ---
 
