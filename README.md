@@ -1,4 +1,4 @@
-<img width="683" height="818" alt="Main Architecture" src="https://github.com/user-attachments/assets/3e54b905-fac3-4275-ace7-29f605624ae0" /><img width="683" height="818" alt="Main Architecture" src="https://github.com/user-attachments/assets/fab252e4-a4cd-4792-bd8e-c3b9c76f1597" />
+
 # Graph-Based Transaction Fraud Detection Pipeline
 
 This repository documents an end‑to‑end data ingestion and quality‑control framework designed for graph‑based fraud analytics using **Neo4j**.
